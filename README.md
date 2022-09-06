@@ -116,3 +116,11 @@ Ensure RabbitMQ, PostgreSQL and Redis are running and `config.yaml` files for ea
 ## Debug / Project setup for repo
 
 Please refer to [README-DevEnv.md](README-DevEnv.md)
+
+## Release Notes
+
+### v0.0.1
+
+- Improved performance in endpoints: for each api call the product service was returning all the products and generating a dictionary for validation. This was replaced by a single call using the `get` method.
+- New endpoints: Delete product, List all orders.
+- Supported pagination in List orders.

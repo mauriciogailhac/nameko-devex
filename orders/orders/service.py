@@ -1,14 +1,17 @@
+import paginate_sqlalchemy
+
 from nameko.events import EventDispatcher
 from nameko.rpc import rpc
 from nameko_sqlalchemy import DatabaseSession
 
 from orders.exceptions import NotFound
 from orders.models import DeclarativeBase, Order, OrderDetail
-from orders.schemas import OrderSchema
+from orders.schemas import OrderSchema, OrderSchemaPaginated
 
 
 class OrdersService:
     name = 'orders'
+    ONE = 1
 
     db = DatabaseSession(DeclarativeBase)
     event_dispatcher = EventDispatcher()
@@ -66,3 +69,11 @@ class OrdersService:
         order = self.db.query(Order).get(order_id)
         self.db.delete(order)
         self.db.commit()
+
+    @rpc
+    def list_orders(self, page=ONE):
+        orders = self.db.query(Order)
+        page = paginate_sqlalchemy.SqlalchemyOrmPage(
+            orders, page=page
+        )
+        return OrderSchemaPaginated().dump(page).data

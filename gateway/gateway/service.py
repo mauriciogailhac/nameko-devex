@@ -8,7 +8,13 @@ from werkzeug import Response
 
 from gateway.entrypoints import http
 from gateway.exceptions import OrderNotFound, ProductNotFound
-from gateway.schemas import CreateOrderSchema, GetOrderSchema, ProductSchema
+from gateway.schemas import (
+    CreateOrderSchema,
+    GetOrderSchema,
+    ProductSchema,
+    Status,
+    OrderSchemaPaginated
+)
 
 
 class GatewayService(object):
@@ -74,6 +80,19 @@ class GatewayService(object):
             json.dumps({'id': product_data['id']}), mimetype='application/json'
         )
 
+    @http(
+        "DELETE", "/products/<string:product_id>",
+        expected_exceptions=ProductNotFound
+    )
+    def delete_product(self, request, product_id):
+        """Delete product by `product_id`
+        """
+        status = self.products_rpc.delete(product_id)
+        return Response(
+            Status().dumps(status).data,
+            mimetype='application/json'
+        )
+
     @http("GET", "/orders/<int:order_id>", expected_exceptions=OrderNotFound)
     def get_order(self, request, order_id):
         """Gets the order details for the order given by `order_id`.
@@ -92,20 +111,33 @@ class GatewayService(object):
         # Note - this may raise a remote exception that has been mapped to
         # raise``OrderNotFound``
         order = self.orders_rpc.get_order(order_id)
+        return self._enhance_order(order, self._get_image)
 
-        # Retrieve all products from the products service
-        product_map = {prod['id']: prod for prod in self.products_rpc.list()}
-
+    @property
+    def _get_image(self):
         # get the configured image root
-        image_root = config['PRODUCT_IMAGE_ROOT']
+        return config.get('PRODUCT_IMAGE_ROOT')
 
+    def _enhance_order(self, order, image):
         # Enhance order details with product and image details.
         for item in order['order_details']:
             product_id = item['product_id']
-
-            item['product'] = product_map[product_id]
+            # Add product
+            try:
+                item['product'] = self.products_rpc.get(product_id)
+            except ProductNotFound:
+                # TODO: Show the order with no product data (only product id)
+                #  probably this is not quite right, so we need to check what
+                #  we are going to do with this kind of orders
+                item['product'] = {
+                    'id': product_id,
+                    'title': None,
+                    'maximum_speed': None,
+                    'passenger_capacity': None,
+                    'in_stock': None
+                }
             # Construct an image url.
-            item['image'] = '{}/{}.jpg'.format(image_root, product_id)
+            item['image'] = '{}/{}.jpg'.format(image, product_id)
 
         return order
 
@@ -157,13 +189,8 @@ class GatewayService(object):
 
     def _create_order(self, order_data):
         # check order product ids are valid
-        valid_product_ids = {prod['id'] for prod in self.products_rpc.list()}
         for item in order_data['order_details']:
-            if item['product_id'] not in valid_product_ids:
-                raise ProductNotFound(
-                    "Product Id {}".format(item['product_id'])
-                )
-
+            self.products_rpc.get(item['product_id'])
         # Call orders-service to create the order.
         # Dump the data through the schema to ensure the values are serialized
         # correctly.
@@ -172,3 +199,20 @@ class GatewayService(object):
             serialized_data['order_details']
         )
         return result['id']
+
+    @http("GET", "/orders")
+    def get_orders(self, request):
+        """List the actual orders.
+        """
+        # Get page number
+        page = request.args.get('page')
+        orders = self.orders_rpc.list_orders(page=page)
+        image = self._get_image
+        orders['items'] = [
+            self._enhance_order(order, image)
+            for order in orders.get('items')
+        ]
+        return Response(
+            OrderSchemaPaginated().dumps(orders).data,
+            mimetype='application/json'
+        )

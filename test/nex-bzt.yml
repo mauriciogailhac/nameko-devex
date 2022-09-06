@@ -51,7 +51,7 @@ scenarios:
 
     # 2. Get Product
     - url: /products/${product_id}
-      label: product-get
+      label: products-get
       think-time: uniform(0s, 0s)
       method: GET
         
@@ -92,7 +92,7 @@ scenarios:
   
     # 4. Get Orders
     - url: /orders/${order_id}
-      label: order-get
+      label: orders-get
       think-time: uniform(0s, 0s)
       method: GET
         
@@ -108,7 +108,34 @@ scenarios:
     - if: '"${order_id}" == "NOT_FOUND"'
       then:
         - action: continue
-  
+
+    # 5. Get all Orders
+    - url: /orders
+      label: orders-list
+      think-time: uniform(0s, 0s)
+      method: GET
+      assert:
+      - contains:
+        - 200
+        subject: http-code
+        not: false
+
+    # 6. Delete products
+
+    - url: /products/${product_id}
+      label: products-delete
+      think-time: uniform(0s, 0s)
+      method: DELETE
+
+      assert:
+      - contains:
+        - 200
+        subject: http-code
+        not: false
+      extract-jsonpath:
+        product_key: $.id
+        default: NOT_FOUND
+
 reporting:
 - module: final-stats
   dump-xml: stats.xml

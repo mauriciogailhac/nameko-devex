@@ -48,7 +48,7 @@ deploy-docker: build
 	bash -c "trap 'make undeploy-docker' EXIT; PREFIX=${PREFIX} TAG=$(TAG) docker-compose up"
 
 undeploy-docker:
-	PREFIX=$(PREFIX) docker-compose down
+	PREFIX=$(PREFIX) docker-compose down -v
 	
 docker-save:
 	mkdir -p docker-images

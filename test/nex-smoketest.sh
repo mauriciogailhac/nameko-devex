@@ -27,28 +27,76 @@ fi
 
 echo STD_APP_URL=${STD_APP_URL}
 
-# Test: Create Products
-echo "=== Creating a product id: the_odyssey ==="
-curl -s -XPOST  "${STD_APP_URL}/products" \
+create_order()
+{
+
+  curl -s -XPOST "${STD_APP_URL}/orders" \
     -H 'accept: application/json' \
     -H 'Content-Type: application/json' \
-    -d '{"id": "the_odyssey", "title": "The Odyssey", "passenger_capacity": 101, "maximum_speed": 5, "in_stock": 10}'
+    -d "$1"
+}
+
+create_product()
+{
+
+  curl -s -XPOST  "${STD_APP_URL}/products" \
+    -H 'accept: application/json' \
+    -H 'Content-Type: application/json' \
+    -d "$1"
+}
+
+get_product()
+{
+  curl -s "${STD_APP_URL}/products/$1" | jq .
+}
+
+get_order()
+{
+  curl -s "${STD_APP_URL}/orders/$1" | jq .
+}
+
+delete_product()
+{
+  curl -s -X "DELETE" "${STD_APP_URL}/products/$1" | jq .
+}
+
+list_orders()
+{
+  curl -s "${STD_APP_URL}/orders?page=1" | jq .
+}
+
+
+# Test: Create Products
+echo "=== Creating a product id: the_odyssey ==="
+create_product '{"id": "the_odyssey", "title": "The Odyssey", "passenger_capacity": 101, "maximum_speed": 5, "in_stock": 10}'
 echo
 # Test: Get Product
 echo "=== Getting product id: the_odyssey ==="
-curl -s "${STD_APP_URL}/products/the_odyssey" | jq .
-
+get_product 'the_odyssey'
+# Test: Delete Product
+echo "=== Deleting product: the_odyssey ==="
+delete_product 'the_odyssey'
+# Test: Create Products
+echo "=== Creating a product id: the_odyssey ==="
+create_product '{"id": "the_odyssey", "title": "The Odyssey", "passenger_capacity": 101, "maximum_speed": 5, "in_stock": 10}'
+echo
+echo "=== Creating a product id: the_end ==="
+create_product '{"id": "the_end", "title": "The End", "passenger_capacity": 101, "maximum_speed": 5, "in_stock": 10}'
+echo
 # Test: Create Order
-echo "=== Creating Order ==="
+echo "=== Creating Orders ==="
 ORDER_ID=$(
-    curl -s -XPOST "${STD_APP_URL}/orders" \
-    -H 'accept: application/json' \
-    -H 'Content-Type: application/json' \
-    -d '{"order_details": [{"product_id": "the_odyssey", "price": "100000.99", "quantity": 1}]}' 
+    create_order '{"order_details": [{"product_id": "the_odyssey", "price": "100000.99", "quantity": 1}]}'
 )
+create_order '{"order_details": [{"product_id": "the_end", "price": "100000.99", "quantity": 1}]}'
+
 echo ${ORDER_ID}
 ID=$(echo ${ORDER_ID} | jq '.id')
 
 # Test: Get Order back
 echo "=== Getting Order ==="
-curl -s "${STD_APP_URL}/orders/${ID}" | jq .
+get_order $ID
+
+# Test: List Orders
+echo "=== List Orders ==="
+list_orders

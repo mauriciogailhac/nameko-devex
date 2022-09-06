@@ -12,6 +12,7 @@ setup(
         'alembic==1.0.10',
         'marshmallow==2.19.2',
         'psycopg2-binary==2.8.2',
+        'paginate-sqlalchemy==0.3.1'
     ],
     extras_require={
         'dev': [

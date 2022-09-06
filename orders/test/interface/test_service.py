@@ -16,6 +16,14 @@ def order(db_session):
 
 
 @pytest.fixture
+def order2(db_session):
+    order = Order()
+    db_session.add(order)
+    db_session.commit()
+    return order
+
+
+@pytest.fixture
 def order_details(db_session, order):
     db_session.add_all([
         OrderDetail(
@@ -32,6 +40,27 @@ def order_details(db_session, order):
 def test_get_order(orders_rpc, order):
     response = orders_rpc.get_order(1)
     assert response['id'] == order.id
+
+
+def test_list_orders(orders_rpc, order, order2):
+    response = orders_rpc.list_orders()
+    expected_response = {
+        'last_item': 2,
+        'page_count': 1,
+        'items_per_page': 20,
+        'items': [
+            {'id': 1, 'order_details': []},
+            {'id': 2, 'order_details': []}
+        ],
+        'first_item': 1,
+        'last_page': 1,
+        'next_page': None,
+        'page': 1,
+        'previous_page': None,
+        'item_count': 2,
+        'first_page': 1
+    }
+    assert expected_response == response
 
 
 @pytest.mark.usefixtures('db_session')
